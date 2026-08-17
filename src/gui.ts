@@ -28,6 +28,12 @@ export function log(str: string) {
     $("#log").append("<br/><span>" + str + "</span>");
 }
 
+function hexToRgb(hex: string): RGB | null {
+    const match = hex.match(/^#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/);
+    if (!match) return null;
+    return [parseInt(match[1], 16), parseInt(match[2], 16), parseInt(match[3], 16)];
+}
+
 export function parseSettings(): Settings {
     const settings = new Settings();
 
@@ -60,29 +66,32 @@ export function parseSettings(): Settings {
     settings.resizeImageWidth = parseInt($("#txtResizeWidth").val() + "");
     settings.resizeImageHeight = parseInt($("#txtResizeHeight").val() + "");
 
-    const restrictedColorLines = ($("#txtKMeansColorRestrictions").val() + "").split("\n");
-    for (const line of restrictedColorLines) {
-        const tline = line.trim();
-        if (tline.indexOf("//") === 0) {
-            // comment, skip
-        } else {
-            const rgbparts = tline.split(",");
-            if (rgbparts.length === 3) {
-                let red = parseInt(rgbparts[0]);
-                let green = parseInt(rgbparts[1]);
-                let blue = parseInt(rgbparts[2]);
-                if (red < 0) red = 0;
-                if (red > 255) red = 255;
-                if (green < 0) green = 0;
-                if (green > 255) green = 255;
-                if (blue < 0) blue = 0;
-                if (blue > 255) blue = 255;
-
-                if (!isNaN(red) && !isNaN(green) && !isNaN(blue)) {
-                    settings.kMeansColorRestrictions.push([red, green, blue]);
+    const restrictedColorInput = ($("#txtKMeansColorRestrictions").val() + "").trim();
+    if (restrictedColorInput.startsWith("[")) {
+        try {
+            const jsonData = JSON.parse(restrictedColorInput);
+            if (Array.isArray(jsonData)) {
+                for (const entry of jsonData) {
+                    if (entry && typeof entry === "object" && typeof entry.hex === "string") {
+                        const rgb = hexToRgb(entry.hex);
+                        if (rgb) {
+                            if (typeof entry.label === "string" && entry.label.length > 0) {
+                                settings.colorAliases[entry.label] = rgb;
+                                settings.kMeansColorRestrictions.push(entry.label);
+                            } else {
+                                settings.kMeansColorRestrictions.push(rgb);
+                            }
+                        }
+                    }
                 }
             }
+        } catch {
+            // not valid JSON
         }
+    }
+
+    if (settings.kMeansColorRestrictions.length > 0) {
+        settings.kMeansNrOfClusters = settings.kMeansColorRestrictions.length;
     }
 
     return settings;
@@ -120,23 +129,24 @@ export async function updateOutput() {
         $(".status.SVGGenerate").removeClass("complete");
         $(".status.SVGGenerate").addClass("active");
 
-        const svg = await GUIProcessManager.createSVG(processResult.facetResult, processResult.colorsByIndex, sizeMultiplier, fill, stroke, showLabels, fontSize, fontColor, (progress) => {
+        const svg = await GUIProcessManager.createSVG(processResult.facetResult, processResult.colorsByIndex, processResult.colorLabelsByIndex, sizeMultiplier, fill, stroke, showLabels, fontSize, fontColor, (progress) => {
             if (cancellationToken.isCancelled) { throw new Error("Cancelled"); }
             $("#statusSVGGenerate").css("width", Math.round(progress * 100) + "%");
         });
         $("#svgContainer").empty().append(svg);
-        $("#palette").empty().append(createPaletteHtml(processResult.colorsByIndex));
+        $("#palette").empty().append(createPaletteHtml(processResult.colorsByIndex, processResult.colorLabelsByIndex));
         ($("#palette .color") as any).tooltip();
         $(".status").removeClass("active");
         $(".status.SVGGenerate").addClass("complete");
     }
 }
 
-function createPaletteHtml(colorsByIndex: RGB[]) {
+function createPaletteHtml(colorsByIndex: RGB[], colorLabelsByIndex: string[]) {
     let html = "";
     for (let c: number = 0; c < colorsByIndex.length; c++) {
         const style = "background-color: " + `rgb(${colorsByIndex[c][0]},${colorsByIndex[c][1]},${colorsByIndex[c][2]})`;
-        html += `<div class="color" class="tooltipped" style="${style}" data-tooltip="${colorsByIndex[c][0]},${colorsByIndex[c][1]},${colorsByIndex[c][2]}">${c}</div>`;
+        const label = colorLabelsByIndex[c] || (c + "");
+        html += `<div class="color" class="tooltipped" style="${style}" data-tooltip="${colorsByIndex[c][0]},${colorsByIndex[c][1]},${colorsByIndex[c][2]}">${label}</div>`;
     }
     return $(html);
 }

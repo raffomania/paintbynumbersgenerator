@@ -11,6 +11,7 @@ import { Random } from "./random";
 export class ColorMapResult {
     public imgColorIndices!: Uint8Array2D;
     public colorsByIndex!: RGB[];
+    public colorLabelsByIndex!: string[];
     public width!: number;
     public height!: number;
 }
@@ -20,11 +21,20 @@ export class ColorReducer {
     /**
      *  Creates a map of the various colors used
      */
-    public static createColorMap(kmeansImgData: ImageData) {
+    public static createColorMap(kmeansImgData: ImageData, colorAliases?: { [key: string]: RGB }) {
         const imgColorIndices = new Uint8Array2D(kmeansImgData.width, kmeansImgData.height);
         let colorIndex = 0;
         const colors: IMap<number> = {};
         const colorsByIndex: RGB[] = [];
+        const colorLabelsByIndex: string[] = [];
+
+        const aliasByRgb: IMap<string> = {};
+        if (colorAliases) {
+            for (const label of Object.keys(colorAliases)) {
+                const rgb = colorAliases[label];
+                aliasByRgb[rgb[0] + "," + rgb[1] + "," + rgb[2]] = label;
+            }
+        }
 
         let idx = 0;
         for (let j: number = 0; j < kmeansImgData.height; j++) {
@@ -39,6 +49,7 @@ export class ColorReducer {
                     currentColorIndex = colorIndex;
                     colors[color] = colorIndex;
                     colorsByIndex.push([r, g, b]);
+                    colorLabelsByIndex.push(aliasByRgb[color] || (colorIndex + ""));
                     colorIndex++;
                 } else {
                     currentColorIndex = colors[color];
@@ -50,6 +61,7 @@ export class ColorReducer {
         const result = new ColorMapResult();
         result.imgColorIndices = imgColorIndices;
         result.colorsByIndex = colorsByIndex;
+        result.colorLabelsByIndex = colorLabelsByIndex;
         result.width = kmeansImgData.width;
         result.height = kmeansImgData.height;
 

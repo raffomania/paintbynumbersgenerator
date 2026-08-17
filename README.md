@@ -112,6 +112,22 @@ I used VSCode, which has built in typescript support. To debug it uses a tiny we
 
 To run do `npm install` to restore packages and then `npm start` to start the webserver
 
+## Building
+
+The TypeScript source in `src/` compiles to `scripts/main.js` using AMD modules.
+
+1. Install dependencies (this includes TypeScript):
+   ```
+   npm install
+   ```
+
+2. Compile:
+   ```
+   npx tsc -p src/tsconfig.json --skipLibCheck --noEmitOnError false
+   ```
+
+   There are a few pre-existing type errors (missing module declarations, strict null checks) that do not affect the output. The `--skipLibCheck` and `--noEmitOnError false` flags ensure the build completes and emits `scripts/main.js` despite these errors.
+
 
 ## Compiling the cli version
 

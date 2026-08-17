@@ -127,9 +127,9 @@
                             <div class="col s12">
                                 <label for="txtKMeansColorRestrictions">Restrict clustering colors
                                     <i class="material-icons tooltipped"
-                                        data-tooltip="Specify which colors should be used, one per line in 'r,g,b' format. Use // as comment. If no colors are specified no restrictions are applied. Useful if you only have a few colors of paint on hand.">info</i>
+                                        data-tooltip="Paste the contents of a JSON color file (array of objects with 'hex' fields) to restrict clustering to those colors. If no colors are specified no restrictions are applied. Useful if you only have a few colors of paint on hand.">info</i>
                                 </label>
-                                <textarea id="txtKMeansColorRestrictions" class="materialize-textarea validate">
+                                <textarea id="txtKMeansColorRestrictions" class="materialize-textarea validate" style="max-height: 200px; overflow-y: auto;">
 //0,0,0
 //255,255,255
 </textarea>

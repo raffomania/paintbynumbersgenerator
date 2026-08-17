@@ -17,6 +17,7 @@ import { Point } from "./structs/point";
 export class ProcessResult {
     public facetResult!: FacetResult;
     public colorsByIndex!: RGB[];
+    public colorLabelsByIndex!: string[];
 }
 
 /**
@@ -68,7 +69,7 @@ export class GUIProcessManager {
         let colormapResult: ColorMapResult = new ColorMapResult();
 
         // build color map
-        colormapResult = ColorReducer.createColorMap(kmeansImgData);
+        colormapResult = ColorReducer.createColorMap(kmeansImgData, settings.colorAliases);
 
         if (settings.narrowPixelStripCleanupRuns === 0) {
             // facet building
@@ -105,6 +106,7 @@ export class GUIProcessManager {
         const processResult = new ProcessResult();
         processResult.facetResult = facetResult;
         processResult.colorsByIndex = colormapResult.colorsByIndex;
+        processResult.colorLabelsByIndex = colormapResult.colorLabelsByIndex;
         return processResult;
     }
 
@@ -293,7 +295,7 @@ export class GUIProcessManager {
     /**
      *  Creates a vector based SVG image of the facets with the given configuration
      */
-    public static async createSVG(facetResult: FacetResult, colorsByIndex: RGB[], sizeMultiplier: number, fill: boolean, stroke: boolean, addColorLabels: boolean, fontSize: number = 50, fontColor: string = "black", onUpdate: ((progress: number) => void) | null = null) {
+    public static async createSVG(facetResult: FacetResult, colorsByIndex: RGB[], colorLabelsByIndex: string[], sizeMultiplier: number, fill: boolean, stroke: boolean, addColorLabels: boolean, fontSize: number = 50, fontColor: string = "black", onUpdate: ((progress: number) => void) | null = null) {
         const xmlns = "http://www.w3.org/2000/svg";
         const svg = document.createElementNS(xmlns, "svg");
         svg.setAttribute("width", sizeMultiplier * facetResult.width + "");
@@ -385,13 +387,13 @@ export class GUIProcessManager {
                 if (addColorLabels) {
                     const txt = document.createElementNS(xmlns, "text");
                     txt.setAttribute("font-family", "Tahoma");
-                    const nrOfDigits = (f.color + "").length;
-                    txt.setAttribute("font-size", (fontSize / nrOfDigits) + "");
+                    const label = colorLabelsByIndex[f.color] || (f.color + "");
+                    txt.setAttribute("font-size", (fontSize / label.length) + "");
                     txt.setAttribute("dominant-baseline", "middle");
                     txt.setAttribute("text-anchor", "middle");
                     txt.setAttribute("fill", fontColor);
 
-                    txt.textContent = f.color + "";
+                    txt.textContent = label;
 
                     const subsvg = document.createElementNS(xmlns, "svg");
                     subsvg.setAttribute("width", f.labelBounds.width * sizeMultiplier + "");
