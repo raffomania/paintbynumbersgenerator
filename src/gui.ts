@@ -212,31 +212,126 @@ export function downloadPNG() {
     }
 }
 
+/**
+ * Cached parsed Hershey glyph data (fetched once per page load).
+ * Maps a unicode character to { d: path data string, advanceWidth: number }.
+ */
+let hersheyGlyphs: Map<string, { d: string; advanceWidth: number }> | null = null;
+const HERSHEY_UNITS_PER_EM = 1000;
+const HERSHEY_CAP_HEIGHT = 500;
+
+async function ensureHersheyGlyphs(): Promise<Map<string, { d: string; advanceWidth: number }>> {
+    if (hersheyGlyphs) return hersheyGlyphs;
+
+    const resp = await fetch("fonts/HersheySans1.svg");
+    if (!resp.ok) throw new Error(`Failed to fetch HersheySans1.svg: HTTP ${resp.status}`);
+    const text = await resp.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, "image/svg+xml");
+
+    hersheyGlyphs = new Map();
+    for (const glyph of Array.from(doc.querySelectorAll("glyph"))) {
+        const unicode = glyph.getAttribute("unicode");
+        const d = glyph.getAttribute("d");
+        const advW = glyph.getAttribute("horiz-adv-x");
+        if (unicode && d && advW) {
+            hersheyGlyphs.set(unicode, { d, advanceWidth: parseFloat(advW) });
+        }
+    }
+    return hersheyGlyphs;
+}
+
+/**
+ * Replaces all <text> elements in svgEl with Hershey single-stroke <path>
+ * elements. Paths use fill="none" + stroke, making them true open-path output
+ * suitable for CNC plotters, laser engravers, and Inkscape.
+ */
+async function textLabelsToHersheyPaths(svgEl: SVGSVGElement): Promise<void> {
+    const glyphs = await ensureHersheyGlyphs();
+    const xmlns = "http://www.w3.org/2000/svg";
+    const scale_factor = 1 / HERSHEY_UNITS_PER_EM;
+    const capNorm = HERSHEY_CAP_HEIGHT * scale_factor;
+
+    const textEls = Array.from(svgEl.querySelectorAll("text")) as SVGTextElement[];
+
+    for (const textEl of textEls) {
+        const text = textEl.textContent ?? "";
+        if (!text) continue;
+
+        const cx = parseFloat(textEl.getAttribute("x") ?? "0");
+        const cy = parseFloat(textEl.getAttribute("y") ?? "0");
+        const fontSize = parseFloat(textEl.getAttribute("font-size") ?? "12");
+        const strokeColor = textEl.getAttribute("fill") ?? "black";
+        const strokeWidth = Math.max(3, fontSize);
+
+        let totalAdvance = 0;
+        for (const ch of text) {
+            const g = glyphs.get(ch);
+            totalAdvance += g ? g.advanceWidth * scale_factor * fontSize : fontSize * 0.6;
+        }
+
+        const baselineSvgY = cy + (capNorm * fontSize) / 2;
+        let curX = cx - totalAdvance / 2;
+
+        const g = document.createElementNS(xmlns, "g");
+
+        for (const ch of text) {
+            const glyph = glyphs.get(ch);
+            if (!glyph) {
+                curX += fontSize * 0.6;
+                continue;
+            }
+            const advPx = glyph.advanceWidth * scale_factor * fontSize;
+            const s = scale_factor * fontSize;
+
+            const pathEl = document.createElementNS(xmlns, "path");
+            pathEl.setAttribute("d", glyph.d);
+            pathEl.setAttribute("fill", "none");
+            pathEl.setAttribute("stroke", strokeColor);
+            pathEl.setAttribute("stroke-width", strokeWidth + "");
+            pathEl.setAttribute("stroke-linecap", "round");
+            pathEl.setAttribute("stroke-linejoin", "round");
+            pathEl.setAttribute("transform", `translate(${curX},${baselineSvgY}) scale(${s},${-s})`);
+            g.appendChild(pathEl);
+            curX += advPx;
+        }
+
+        textEl.parentNode!.replaceChild(g, textEl);
+    }
+}
+
 export function downloadSVG() {
     if ($("#svgContainer svg").length > 0) {
-        const svgEl = $("#svgContainer svg").get(0) as any;
-
+        const svgEl = $("#svgContainer svg").get(0) as unknown as SVGSVGElement;
         svgEl.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-        const svgData = svgEl.outerHTML;
-        const preface = '<?xml version="1.0" standalone="no"?>\r\n';
-        const svgBlob = new Blob([preface, svgData], { type: "image/svg+xml;charset=utf-8" });
-        const svgUrl = URL.createObjectURL(svgBlob);
-        const downloadLink = document.createElement("a");
-        downloadLink.href = svgUrl;
-        downloadLink.download = "paintbynumbers.svg";
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
 
-        /*
-        var svgAsXML = (new XMLSerializer).serializeToString(<any>$("#svgContainer svg").get(0));
-        let dataURL = "data:image/svg+xml," + encodeURIComponent(svgAsXML);
-        var dl = document.createElement("a");
-        document.body.appendChild(dl);
-        dl.setAttribute("href", dataURL);
-        dl.setAttribute("download", "paintbynumbers.svg");
-        dl.click();
-        */
+        const renderAsPaths = (document.getElementById("chkRenderLabelsAsPaths") as HTMLInputElement).checked;
+
+        if (renderAsPaths) {
+            textLabelsToHersheyPaths(svgEl).then(() => {
+                const svgData = svgEl.outerHTML;
+                const preface = '<?xml version="1.0" standalone="no"?>\r\n';
+                const svgBlob = new Blob([preface, svgData], { type: "image/svg+xml;charset=utf-8" });
+                const svgUrl = URL.createObjectURL(svgBlob);
+                const downloadLink = document.createElement("a");
+                downloadLink.href = svgUrl;
+                downloadLink.download = "paintbynumbers.svg";
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+            });
+        } else {
+            const svgData = svgEl.outerHTML;
+            const preface = '<?xml version="1.0" standalone="no"?>\r\n';
+            const svgBlob = new Blob([preface, svgData], { type: "image/svg+xml;charset=utf-8" });
+            const svgUrl = URL.createObjectURL(svgBlob);
+            const downloadLink = document.createElement("a");
+            downloadLink.href = svgUrl;
+            downloadLink.download = "paintbynumbers.svg";
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }
     }
 }
 

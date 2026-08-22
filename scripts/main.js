@@ -3247,29 +3247,119 @@ define("gui", ["require", "exports", "common", "guiprocessmanager", "settings"],
         }
     }
     exports.downloadPNG = downloadPNG;
+    /**
+     * Cached parsed Hershey glyph data (fetched once per page load).
+     * Maps a unicode character to { d: path data string, advanceWidth: number }.
+     */
+    let hersheyGlyphs = null;
+    const HERSHEY_UNITS_PER_EM = 1000;
+    const HERSHEY_CAP_HEIGHT = 500;
+    function ensureHersheyGlyphs() {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (hersheyGlyphs)
+                return hersheyGlyphs;
+            const resp = yield fetch("fonts/HersheySans1.svg");
+            if (!resp.ok)
+                throw new Error(`Failed to fetch HersheySans1.svg: HTTP ${resp.status}`);
+            const text = yield resp.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, "image/svg+xml");
+            hersheyGlyphs = new Map();
+            for (const glyph of Array.from(doc.querySelectorAll("glyph"))) {
+                const unicode = glyph.getAttribute("unicode");
+                const d = glyph.getAttribute("d");
+                const advW = glyph.getAttribute("horiz-adv-x");
+                if (unicode && d && advW) {
+                    hersheyGlyphs.set(unicode, { d, advanceWidth: parseFloat(advW) });
+                }
+            }
+            return hersheyGlyphs;
+        });
+    }
+    /**
+     * Replaces all <text> elements in svgEl with Hershey single-stroke <path>
+     * elements. Paths use fill="none" + stroke, making them true open-path output
+     * suitable for CNC plotters, laser engravers, and Inkscape.
+     */
+    function textLabelsToHersheyPaths(svgEl) {
+        var _a, _b, _c, _d, _e;
+        return __awaiter(this, void 0, void 0, function* () {
+            const glyphs = yield ensureHersheyGlyphs();
+            const xmlns = "http://www.w3.org/2000/svg";
+            const scale_factor = 1 / HERSHEY_UNITS_PER_EM;
+            const capNorm = HERSHEY_CAP_HEIGHT * scale_factor;
+            const textEls = Array.from(svgEl.querySelectorAll("text"));
+            for (const textEl of textEls) {
+                const text = (_a = textEl.textContent) !== null && _a !== void 0 ? _a : "";
+                if (!text)
+                    continue;
+                const cx = parseFloat((_b = textEl.getAttribute("x")) !== null && _b !== void 0 ? _b : "0");
+                const cy = parseFloat((_c = textEl.getAttribute("y")) !== null && _c !== void 0 ? _c : "0");
+                const fontSize = parseFloat((_d = textEl.getAttribute("font-size")) !== null && _d !== void 0 ? _d : "12");
+                const strokeColor = (_e = textEl.getAttribute("fill")) !== null && _e !== void 0 ? _e : "black";
+                const strokeWidth = Math.max(3, fontSize);
+                let totalAdvance = 0;
+                for (const ch of text) {
+                    const g = glyphs.get(ch);
+                    totalAdvance += g ? g.advanceWidth * scale_factor * fontSize : fontSize * 0.6;
+                }
+                const baselineSvgY = cy + (capNorm * fontSize) / 2;
+                let curX = cx - totalAdvance / 2;
+                const g = document.createElementNS(xmlns, "g");
+                for (const ch of text) {
+                    const glyph = glyphs.get(ch);
+                    if (!glyph) {
+                        curX += fontSize * 0.6;
+                        continue;
+                    }
+                    const advPx = glyph.advanceWidth * scale_factor * fontSize;
+                    const s = scale_factor * fontSize;
+                    const pathEl = document.createElementNS(xmlns, "path");
+                    pathEl.setAttribute("d", glyph.d);
+                    pathEl.setAttribute("fill", "none");
+                    pathEl.setAttribute("stroke", strokeColor);
+                    pathEl.setAttribute("stroke-width", strokeWidth + "");
+                    pathEl.setAttribute("stroke-linecap", "round");
+                    pathEl.setAttribute("stroke-linejoin", "round");
+                    pathEl.setAttribute("transform", `translate(${curX},${baselineSvgY}) scale(${s},${-s})`);
+                    g.appendChild(pathEl);
+                    curX += advPx;
+                }
+                textEl.parentNode.replaceChild(g, textEl);
+            }
+        });
+    }
     function downloadSVG() {
         if ($("#svgContainer svg").length > 0) {
             const svgEl = $("#svgContainer svg").get(0);
             svgEl.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-            const svgData = svgEl.outerHTML;
-            const preface = '<?xml version="1.0" standalone="no"?>\r\n';
-            const svgBlob = new Blob([preface, svgData], { type: "image/svg+xml;charset=utf-8" });
-            const svgUrl = URL.createObjectURL(svgBlob);
-            const downloadLink = document.createElement("a");
-            downloadLink.href = svgUrl;
-            downloadLink.download = "paintbynumbers.svg";
-            document.body.appendChild(downloadLink);
-            downloadLink.click();
-            document.body.removeChild(downloadLink);
-            /*
-            var svgAsXML = (new XMLSerializer).serializeToString(<any>$("#svgContainer svg").get(0));
-            let dataURL = "data:image/svg+xml," + encodeURIComponent(svgAsXML);
-            var dl = document.createElement("a");
-            document.body.appendChild(dl);
-            dl.setAttribute("href", dataURL);
-            dl.setAttribute("download", "paintbynumbers.svg");
-            dl.click();
-            */
+            const renderAsPaths = document.getElementById("chkRenderLabelsAsPaths").checked;
+            if (renderAsPaths) {
+                textLabelsToHersheyPaths(svgEl).then(() => {
+                    const svgData = svgEl.outerHTML;
+                    const preface = '<?xml version="1.0" standalone="no"?>\r\n';
+                    const svgBlob = new Blob([preface, svgData], { type: "image/svg+xml;charset=utf-8" });
+                    const svgUrl = URL.createObjectURL(svgBlob);
+                    const downloadLink = document.createElement("a");
+                    downloadLink.href = svgUrl;
+                    downloadLink.download = "paintbynumbers.svg";
+                    document.body.appendChild(downloadLink);
+                    downloadLink.click();
+                    document.body.removeChild(downloadLink);
+                });
+            }
+            else {
+                const svgData = svgEl.outerHTML;
+                const preface = '<?xml version="1.0" standalone="no"?>\r\n';
+                const svgBlob = new Blob([preface, svgData], { type: "image/svg+xml;charset=utf-8" });
+                const svgUrl = URL.createObjectURL(svgBlob);
+                const downloadLink = document.createElement("a");
+                downloadLink.href = svgUrl;
+                downloadLink.download = "paintbynumbers.svg";
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+            }
         }
     }
     exports.downloadSVG = downloadSVG;
