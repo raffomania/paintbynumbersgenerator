@@ -289,7 +289,7 @@ define("settings", ["require", "exports"], function (require, exports) {
             this.kMeansColorRestrictions = [];
             this.colorAliases = {};
             this.narrowPixelStripCleanupRuns = 3; // 3 seems like a good compromise between removing enough narrow pixel strips to convergence. This fixes e.g. https://i.imgur.com/dz4ANz1.png
-            this.removeFacetsSmallerThanNrOfPoints = 20;
+            this.removeFacetsSmallerThanNrOfPoints = 100;
             this.removeFacetsFromLargeToSmall = true;
             this.maximumNumberOfFacets = Number.MAX_VALUE;
             this.nrOfTimesToHalveBorderSegments = 2;
@@ -2925,7 +2925,7 @@ define("guiprocessmanager", ["require", "exports", "colorreductionmanagement", "
         /**
          *  Creates a vector based SVG image of the facets with the given configuration
          */
-        static createSVG(facetResult, colorsByIndex, colorLabelsByIndex, sizeMultiplier, fill, stroke, addColorLabels, fontSize = 200, fontColor = "black", onUpdate = null) {
+        static createSVG(facetResult, colorsByIndex, colorLabelsByIndex, sizeMultiplier, fill, stroke, addColorLabels, fontSize = 100, fontColor = "black", minLabelSize = 0, onUpdate = null) {
             return __awaiter(this, void 0, void 0, function* () {
                 const xmlns = "http://www.w3.org/2000/svg";
                 const svg = document.createElementNS(xmlns, "svg");
@@ -3010,6 +3010,21 @@ define("guiprocessmanager", ["require", "exports", "colorreductionmanagement", "
                         // add the color labels if necessary. I mean, this is the whole idea behind the paint by numbers part
                         // so I don't know why you would hide them
                         if (addColorLabels) {
+                            const originalWidth = f.labelBounds.width * sizeMultiplier;
+                            const originalHeight = f.labelBounds.height * sizeMultiplier;
+                            let labelWidth = originalWidth;
+                            let labelHeight = originalHeight;
+                            // Scale up labels smaller than minimum size
+                            let offsetX = f.labelBounds.minX * sizeMultiplier;
+                            let offsetY = f.labelBounds.minY * sizeMultiplier;
+                            if (minLabelSize > 0 && labelHeight < minLabelSize) {
+                                const scale = minLabelSize / labelHeight;
+                                labelWidth *= scale;
+                                labelHeight *= scale;
+                                // Adjust offset to keep center position
+                                offsetX -= (labelWidth - originalWidth) / 2;
+                                offsetY -= (labelHeight - originalHeight) / 2;
+                            }
                             const txt = document.createElementNS(xmlns, "text");
                             txt.setAttribute("font-family", "Tahoma");
                             const label = colorLabelsByIndex[f.color] || (f.color + "");
@@ -3019,15 +3034,15 @@ define("guiprocessmanager", ["require", "exports", "colorreductionmanagement", "
                             txt.setAttribute("fill", fontColor);
                             txt.textContent = label;
                             const subsvg = document.createElementNS(xmlns, "svg");
-                            subsvg.setAttribute("width", f.labelBounds.width * sizeMultiplier + "");
-                            subsvg.setAttribute("height", f.labelBounds.height * sizeMultiplier + "");
+                            subsvg.setAttribute("width", labelWidth + "");
+                            subsvg.setAttribute("height", labelHeight + "");
                             subsvg.setAttribute("overflow", "visible");
                             subsvg.setAttribute("viewBox", "-50 -50 100 100");
                             subsvg.setAttribute("preserveAspectRatio", "xMidYMid meet");
                             subsvg.appendChild(txt);
                             const g = document.createElementNS(xmlns, "g");
                             g.setAttribute("class", "label");
-                            g.setAttribute("transform", "translate(" + f.labelBounds.minX * sizeMultiplier + "," + f.labelBounds.minY * sizeMultiplier + ")");
+                            g.setAttribute("transform", "translate(" + offsetX + "," + offsetY + ")");
                             g.appendChild(subsvg);
                             svg.appendChild(g);
                         }
@@ -3166,10 +3181,11 @@ define("gui", ["require", "exports", "common", "guiprocessmanager", "settings"],
                 const sizeMultiplier = parseInt($("#txtSizeMultiplier").val() + "");
                 const fontSize = parseInt($("#txtLabelFontSize").val() + "");
                 const fontColor = $("#txtLabelFontColor").val() + "";
+                const minLabelSize = parseInt($("#txtMinLabelSize").val() + "") || 0;
                 $("#statusSVGGenerate").css("width", "0%");
                 $(".status.SVGGenerate").removeClass("complete");
                 $(".status.SVGGenerate").addClass("active");
-                const svg = yield guiprocessmanager_1.GUIProcessManager.createSVG(processResult.facetResult, processResult.colorsByIndex, processResult.colorLabelsByIndex, sizeMultiplier, fill, stroke, showLabels, fontSize, fontColor, (progress) => {
+                const svg = yield guiprocessmanager_1.GUIProcessManager.createSVG(processResult.facetResult, processResult.colorsByIndex, processResult.colorLabelsByIndex, sizeMultiplier, fill, stroke, showLabels, fontSize, fontColor, minLabelSize, (progress) => {
                     if (cancellationToken.isCancelled) {
                         throw new Error("Cancelled");
                     }
@@ -3561,7 +3577,7 @@ define("main", ["require", "exports", "gui", "lib/clipboard"], function (require
                 }
             });
         });
-        $("#chkShowLabels, #chkFillFacets, #chkShowBorders, #txtSizeMultiplier, #txtLabelFontSize, #txtLabelFontColor").change(() => __awaiter(this, void 0, void 0, function* () {
+        $("#chkShowLabels, #chkFillFacets, #chkShowBorders, #txtSizeMultiplier, #txtLabelFontSize, #txtLabelFontColor, #txtMinLabelSize").change(() => __awaiter(this, void 0, void 0, function* () {
             yield gui_2.updateOutput();
         }));
         $("#btnDownloadSVG").click(function () {

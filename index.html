@@ -147,7 +147,7 @@
                                 </label>
                             </div>
                             <div class="input-field col s4">
-                                <input id="txtRemoveFacetsSmallerThan" type="number" value="20" min="1"
+                                <input id="txtRemoveFacetsSmallerThan" type="number" value="100" min="1"
                                     class="validate">
                                 <label for="txtRemoveFacetsSmallerThan">Remove small facets smaller than (pixels)
                                     <i class="material-icons tooltipped"
@@ -355,7 +355,7 @@
                     </div>
                     <div class="col s3">
                         <div class="input-field">
-                            <input placeholder="Label font size" id="txtLabelFontSize" type="number" value="200" min="1"
+                            <input placeholder="Label font size" id="txtLabelFontSize" type="number" value="100" min="1"
                                 max="500">
                             <label for="txtLabelFontSize">Label font size
                                 <i class="material-icons tooltipped"
@@ -369,6 +369,15 @@
                             <label for="txtLabelFontColor">Label font color
                                 <i class="material-icons tooltipped"
                                     data-tooltip="Font color of the color number labels in each facet">info</i>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col s3">
+                        <div class="input-field">
+                            <input placeholder="Minimum label size" id="txtMinLabelSize" type="number" value="50" min="0">
+                            <label for="txtMinLabelSize">Min label size (px)
+                                <i class="material-icons tooltipped"
+                                    data-tooltip="Minimum absolute size of labels in pixels. Labels smaller than this will be scaled up. Set to 0 to disable scaling.">info</i>
                             </label>
                         </div>
                     </div>

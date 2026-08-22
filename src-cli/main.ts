@@ -22,8 +22,9 @@ class CLISettingsOutputProfile {
     public svgShowBorders: boolean = true;
     public svgSizeMultiplier: number = 3;
 
-    public svgFontSize: number = 60;
+    public svgFontSize: number = 100;
     public svgFontColor: string = "black";
+    public svgMinLabelSize: number = 0;
 
     public filetype: "svg" | "png" | "jpg" = "svg";
     public filetypeQuality: number = 95;
@@ -159,7 +160,7 @@ async function main() {
         }
 
         const svgProfilePath = path.join(path.dirname(svgPath), path.basename(svgPath).substr(0, path.basename(svgPath).length - path.extname(svgPath).length) + "-" + profile.name) + "." + profile.filetype;
-        const svgString = await createSVG(facetResult, colormapResult.colorsByIndex, colormapResult.colorLabelsByIndex, profile.svgSizeMultiplier, profile.svgFillFacets, profile.svgShowBorders, profile.svgShowLabels, profile.svgFontSize, profile.svgFontColor);
+        const svgString = await createSVG(facetResult, colormapResult.colorsByIndex, colormapResult.colorLabelsByIndex, profile.svgSizeMultiplier, profile.svgFillFacets, profile.svgShowBorders, profile.svgShowLabels, profile.svgFontSize, profile.svgFontColor, profile.svgMinLabelSize);
 
         if (profile.filetype === "svg") {
             fs.writeFileSync(svgProfilePath, svgString);
@@ -223,7 +224,7 @@ async function main() {
     fs.writeFileSync(palettePath, paletteInfo);
 }
 
-async function createSVG(facetResult: FacetResult, colorsByIndex: RGB[], colorLabelsByIndex: string[], sizeMultiplier: number, fill: boolean, stroke: boolean, addColorLabels: boolean, fontSize: number = 60, fontColor: string = "black", onUpdate: ((progress: number) => void) | null = null) {
+async function createSVG(facetResult: FacetResult, colorsByIndex: RGB[], colorLabelsByIndex: string[], sizeMultiplier: number, fill: boolean, stroke: boolean, addColorLabels: boolean, fontSize: number = 100, fontColor: string = "black", minLabelSize: number = 0, onUpdate: ((progress: number) => void) | null = null) {
 
     let svgString = "";
     const xmlns = "http://www.w3.org/2000/svg";
@@ -299,10 +300,22 @@ async function createSVG(facetResult: FacetResult, colorsByIndex: RGB[], colorLa
             // so I don't know why you would hide them
             if (addColorLabels) {
 
-                const labelOffsetX = f.labelBounds.minX * sizeMultiplier;
-                const labelOffsetY = f.labelBounds.minY * sizeMultiplier;
-                const labelWidth = f.labelBounds.width * sizeMultiplier;
-                const labelHeight = f.labelBounds.height * sizeMultiplier;
+                const originalWidth = f.labelBounds.width * sizeMultiplier;
+                const originalHeight = f.labelBounds.height * sizeMultiplier;
+                let labelWidth = originalWidth;
+                let labelHeight = originalHeight;
+
+                // Scale up labels smaller than minimum size
+                let labelOffsetX = f.labelBounds.minX * sizeMultiplier;
+                let labelOffsetY = f.labelBounds.minY * sizeMultiplier;
+                if (minLabelSize > 0 && labelHeight < minLabelSize) {
+                    const scale = minLabelSize / labelHeight;
+                    labelWidth *= scale;
+                    labelHeight *= scale;
+                    // Adjust offset to keep center position
+                    labelOffsetX -= (labelWidth - originalWidth) / 2;
+                    labelOffsetY -= (labelHeight - originalHeight) / 2;
+                }
 
                 //     const svgLabelString = `<g class="label" transform="translate(${labelOffsetX},${labelOffsetY})">
                 //     <svg width="${labelWidth}" height="${labelHeight}" overflow="visible" viewBox="-50 -50 100 100" preserveAspectRatio="xMidYMid meet">

@@ -123,13 +123,14 @@ export async function updateOutput() {
         const fontSize = parseInt($("#txtLabelFontSize").val() + "");
 
         const fontColor = $("#txtLabelFontColor").val() + "";
+        const minLabelSize = parseInt($("#txtMinLabelSize").val() + "") || 0;
 
         $("#statusSVGGenerate").css("width", "0%");
 
         $(".status.SVGGenerate").removeClass("complete");
         $(".status.SVGGenerate").addClass("active");
 
-        const svg = await GUIProcessManager.createSVG(processResult.facetResult, processResult.colorsByIndex, processResult.colorLabelsByIndex, sizeMultiplier, fill, stroke, showLabels, fontSize, fontColor, (progress) => {
+        const svg = await GUIProcessManager.createSVG(processResult.facetResult, processResult.colorsByIndex, processResult.colorLabelsByIndex, sizeMultiplier, fill, stroke, showLabels, fontSize, fontColor, minLabelSize, (progress) => {
             if (cancellationToken.isCancelled) { throw new Error("Cancelled"); }
             $("#statusSVGGenerate").css("width", Math.round(progress * 100) + "%");
         });

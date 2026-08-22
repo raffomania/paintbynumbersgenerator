@@ -295,7 +295,7 @@ export class GUIProcessManager {
     /**
      *  Creates a vector based SVG image of the facets with the given configuration
      */
-    public static async createSVG(facetResult: FacetResult, colorsByIndex: RGB[], colorLabelsByIndex: string[], sizeMultiplier: number, fill: boolean, stroke: boolean, addColorLabels: boolean, fontSize: number = 200, fontColor: string = "black", onUpdate: ((progress: number) => void) | null = null) {
+    public static async createSVG(facetResult: FacetResult, colorsByIndex: RGB[], colorLabelsByIndex: string[], sizeMultiplier: number, fill: boolean, stroke: boolean, addColorLabels: boolean, fontSize: number = 100, fontColor: string = "black", minLabelSize: number = 0, onUpdate: ((progress: number) => void) | null = null) {
         const xmlns = "http://www.w3.org/2000/svg";
         const svg = document.createElementNS(xmlns, "svg");
         svg.setAttribute("width", sizeMultiplier * facetResult.width + "");
@@ -385,6 +385,23 @@ export class GUIProcessManager {
                 // add the color labels if necessary. I mean, this is the whole idea behind the paint by numbers part
                 // so I don't know why you would hide them
                 if (addColorLabels) {
+                    const originalWidth = f.labelBounds.width * sizeMultiplier;
+                    const originalHeight = f.labelBounds.height * sizeMultiplier;
+                    let labelWidth = originalWidth;
+                    let labelHeight = originalHeight;
+                    
+                    // Scale up labels smaller than minimum size
+                    let offsetX = f.labelBounds.minX * sizeMultiplier;
+                    let offsetY = f.labelBounds.minY * sizeMultiplier;
+                    if (minLabelSize > 0 && labelHeight < minLabelSize) {
+                        const scale = minLabelSize / labelHeight;
+                        labelWidth *= scale;
+                        labelHeight *= scale;
+                        // Adjust offset to keep center position
+                        offsetX -= (labelWidth - originalWidth) / 2;
+                        offsetY -= (labelHeight - originalHeight) / 2;
+                    }
+                    
                     const txt = document.createElementNS(xmlns, "text");
                     txt.setAttribute("font-family", "Tahoma");
                     const label = colorLabelsByIndex[f.color] || (f.color + "");
@@ -396,8 +413,8 @@ export class GUIProcessManager {
                     txt.textContent = label;
 
                     const subsvg = document.createElementNS(xmlns, "svg");
-                    subsvg.setAttribute("width", f.labelBounds.width * sizeMultiplier + "");
-                    subsvg.setAttribute("height", f.labelBounds.height * sizeMultiplier + "");
+                    subsvg.setAttribute("width", labelWidth + "");
+                    subsvg.setAttribute("height", labelHeight + "");
                     subsvg.setAttribute("overflow", "visible");
                     subsvg.setAttribute("viewBox", "-50 -50 100 100");
                     subsvg.setAttribute("preserveAspectRatio", "xMidYMid meet");
@@ -406,7 +423,7 @@ export class GUIProcessManager {
 
                     const g = document.createElementNS(xmlns, "g");
                     g.setAttribute("class", "label");
-                    g.setAttribute("transform", "translate(" + f.labelBounds.minX * sizeMultiplier + "," + f.labelBounds.minY * sizeMultiplier + ")");
+                    g.setAttribute("transform", "translate(" + offsetX + "," + offsetY + ")");
                     g.appendChild(subsvg);
                     svg.appendChild(g);
                 }

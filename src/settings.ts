@@ -17,7 +17,7 @@ export class Settings {
 
     public narrowPixelStripCleanupRuns: number = 3; // 3 seems like a good compromise between removing enough narrow pixel strips to convergence. This fixes e.g. https://i.imgur.com/dz4ANz1.png
 
-    public removeFacetsSmallerThanNrOfPoints: number = 20;
+    public removeFacetsSmallerThanNrOfPoints: number = 100;
     public removeFacetsFromLargeToSmall: boolean = true;
     public maximumNumberOfFacets: number = Number.MAX_VALUE;
 
