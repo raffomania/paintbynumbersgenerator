@@ -372,13 +372,6 @@ define("colorreductionmanagement", ["require", "exports", "common", "lib/cluster
             const colors = {};
             const colorsByIndex = [];
             const colorLabelsByIndex = [];
-            const aliasByRgb = {};
-            if (colorAliases) {
-                for (const label of Object.keys(colorAliases)) {
-                    const rgb = colorAliases[label];
-                    aliasByRgb[rgb[0] + "," + rgb[1] + "," + rgb[2]] = label;
-                }
-            }
             let idx = 0;
             for (let j = 0; j < kmeansImgData.height; j++) {
                 for (let i = 0; i < kmeansImgData.width; i++) {
@@ -392,7 +385,7 @@ define("colorreductionmanagement", ["require", "exports", "common", "lib/cluster
                         currentColorIndex = colorIndex;
                         colors[color] = colorIndex;
                         colorsByIndex.push([r, g, b]);
-                        colorLabelsByIndex.push(aliasByRgb[color] || (colorIndex + ""));
+                        colorLabelsByIndex.push(colorIndex + "");
                         colorIndex++;
                     }
                     else {
@@ -2742,6 +2735,7 @@ define("guiprocessmanager", ["require", "exports", "colorreductionmanagement", "
                 processResult.facetResult = facetResult;
                 processResult.colorsByIndex = colormapResult.colorsByIndex;
                 processResult.colorLabelsByIndex = colormapResult.colorLabelsByIndex;
+                processResult.colorAliases = settings.colorAliases;
                 return processResult;
             });
         }
@@ -3214,12 +3208,21 @@ define("gui", ["require", "exports", "common", "guiprocessmanager", "settings"],
             return;
         }
         const colorsByIndex = processResult.colorsByIndex;
+        const colorAliases = processResult.colorAliases;
+        const aliasByRgb = {};
+        if (colorAliases) {
+            for (const label of Object.keys(colorAliases)) {
+                const rgb = colorAliases[label];
+                aliasByRgb[rgb[0] + "," + rgb[1] + "," + rgb[2]] = label;
+            }
+        }
+        const hasAliases = Object.keys(aliasByRgb).length > 0;
         const canvas = document.createElement("canvas");
         const nrOfItemsPerRow = 10;
         const nrRows = Math.ceil(colorsByIndex.length / nrOfItemsPerRow);
         const margin = 10;
         const cellWidth = 80;
-        const cellHeight = 70;
+        const cellHeight = hasAliases ? 80 : 70;
         canvas.width = margin + nrOfItemsPerRow * (cellWidth + margin);
         canvas.height = margin + nrRows * (cellHeight + margin);
         const ctx = canvas.getContext("2d");
@@ -3243,11 +3246,15 @@ define("gui", ["require", "exports", "common", "guiprocessmanager", "settings"],
             ctx.strokeText(nrText, x + cellWidth / 2 - nrTextSize.width / 2, y + cellHeight / 2 - 5);
             ctx.fillText(nrText, x + cellWidth / 2 - nrTextSize.width / 2, y + cellHeight / 2 - 5);
             ctx.lineWidth = 1;
-            ctx.font = "10px Tahoma";
-            const rgbText = "RGB: " + Math.floor(color[0]) + "," + Math.floor(color[1]) + "," + Math.floor(color[2]);
-            const rgbTextSize = ctx.measureText(rgbText);
-            ctx.fillStyle = "black";
-            ctx.fillText(rgbText, x + cellWidth / 2 - rgbTextSize.width / 2, y + cellHeight - 10);
+            if (hasAliases) {
+                const alias = aliasByRgb[color[0] + "," + color[1] + "," + color[2]];
+                if (alias) {
+                    ctx.font = "9px Tahoma";
+                    const aliasTextSize = ctx.measureText(alias);
+                    ctx.fillStyle = "#555";
+                    ctx.fillText(alias, x + cellWidth / 2 - aliasTextSize.width / 2, y + cellHeight - 1);
+                }
+            }
         }
         const dataURL = canvas.toDataURL("image/png");
         const dl = document.createElement("a");

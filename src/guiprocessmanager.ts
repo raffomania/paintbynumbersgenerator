@@ -18,6 +18,7 @@ export class ProcessResult {
     public facetResult!: FacetResult;
     public colorsByIndex!: RGB[];
     public colorLabelsByIndex!: string[];
+    public colorAliases!: { [key: string]: RGB };
 }
 
 /**
@@ -107,6 +108,7 @@ export class GUIProcessManager {
         processResult.facetResult = facetResult;
         processResult.colorsByIndex = colormapResult.colorsByIndex;
         processResult.colorLabelsByIndex = colormapResult.colorLabelsByIndex;
+        processResult.colorAliases = settings.colorAliases;
         return processResult;
     }
 

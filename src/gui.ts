@@ -155,6 +155,16 @@ function createPaletteHtml(colorsByIndex: RGB[], colorLabelsByIndex: string[]) {
 export function downloadPalettePng() {
     if (processResult == null) { return; }
     const colorsByIndex: RGB[] = processResult.colorsByIndex;
+    const colorAliases = processResult.colorAliases;
+
+    const aliasByRgb: IMap<string> = {};
+    if (colorAliases) {
+        for (const label of Object.keys(colorAliases)) {
+            const rgb = colorAliases[label];
+            aliasByRgb[rgb[0] + "," + rgb[1] + "," + rgb[2]] = label;
+        }
+    }
+    const hasAliases = Object.keys(aliasByRgb).length > 0;
 
     const canvas = document.createElement("canvas");
 
@@ -162,7 +172,7 @@ export function downloadPalettePng() {
     const nrRows = Math.ceil(colorsByIndex.length / nrOfItemsPerRow);
     const margin = 10;
     const cellWidth = 80;
-    const cellHeight = 70;
+    const cellHeight = hasAliases ? 80 : 70;
 
     canvas.width = margin + nrOfItemsPerRow * (cellWidth + margin);
     canvas.height = margin + nrRows * (cellHeight + margin);
@@ -192,11 +202,15 @@ export function downloadPalettePng() {
         ctx.fillText(nrText, x + cellWidth / 2 - nrTextSize.width / 2, y + cellHeight / 2 - 5);
         ctx.lineWidth = 1;
 
-        ctx.font = "10px Tahoma";
-        const rgbText = "RGB: " + Math.floor(color[0]) + "," + Math.floor(color[1]) + "," + Math.floor(color[2]);
-        const rgbTextSize = ctx.measureText(rgbText);
-        ctx.fillStyle = "black";
-        ctx.fillText(rgbText, x + cellWidth / 2 - rgbTextSize.width / 2, y + cellHeight - 10);
+        if (hasAliases) {
+            const alias = aliasByRgb[color[0] + "," + color[1] + "," + color[2]];
+            if (alias) {
+                ctx.font = "9px Tahoma";
+                const aliasTextSize = ctx.measureText(alias);
+                ctx.fillStyle = "#555";
+                ctx.fillText(alias, x + cellWidth / 2 - aliasTextSize.width / 2, y + cellHeight - 1);
+            }
+        }
     }
 
     const dataURL = canvas.toDataURL("image/png");

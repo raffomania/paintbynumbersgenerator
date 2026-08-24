@@ -28,14 +28,6 @@ export class ColorReducer {
         const colorsByIndex: RGB[] = [];
         const colorLabelsByIndex: string[] = [];
 
-        const aliasByRgb: IMap<string> = {};
-        if (colorAliases) {
-            for (const label of Object.keys(colorAliases)) {
-                const rgb = colorAliases[label];
-                aliasByRgb[rgb[0] + "," + rgb[1] + "," + rgb[2]] = label;
-            }
-        }
-
         let idx = 0;
         for (let j: number = 0; j < kmeansImgData.height; j++) {
             for (let i: number = 0; i < kmeansImgData.width; i++) {
@@ -49,7 +41,7 @@ export class ColorReducer {
                     currentColorIndex = colorIndex;
                     colors[color] = colorIndex;
                     colorsByIndex.push([r, g, b]);
-                    colorLabelsByIndex.push(aliasByRgb[color] || (colorIndex + ""));
+                    colorLabelsByIndex.push(colorIndex + "");
                     colorIndex++;
                 } else {
                     currentColorIndex = colors[color];
