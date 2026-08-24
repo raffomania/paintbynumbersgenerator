@@ -3098,9 +3098,11 @@ define("gui", ["require", "exports", "common", "guiprocessmanager", "settings"],
         else if ($("#optColorSpaceHSL").prop("checked")) {
             settings.kMeansClusteringColorSpace = settings_2.ClusteringColorSpace.HSL;
         }
-        else if ($("#optColorSpaceRGB").prop("checked")) {
+        else if ($("#optColorSpaceLAB").prop("checked")) {
             settings.kMeansClusteringColorSpace = settings_2.ClusteringColorSpace.LAB;
         }
+        const colorSpaceNames = ["RGB", "HSL", "LAB"];
+        console.log("Color space selected:", colorSpaceNames[settings.kMeansClusteringColorSpace], "(enum value:", settings.kMeansClusteringColorSpace + ")");
         if ($("#optFacetRemovalLargestToSmallest").prop("checked")) {
             settings.removeFacetsFromLargeToSmall = true;
         }

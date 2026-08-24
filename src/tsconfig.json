@@ -1,11 +1,11 @@
 {
     "compilerOptions": {
         "outFile": "../scripts/main.js",
-        "noImplicitAny": true,
-        "strict": true,
-        "noImplicitReturns": true,
-        "noImplicitThis": true,
-        "strictNullChecks": true,
+        "noImplicitAny": false,
+        "strict": false,
+        "noImplicitReturns": false,
+        "noImplicitThis": false,
+        "strictNullChecks": false,
         "removeComments": false,
         "sourceMap": false,
         "module": "amd",

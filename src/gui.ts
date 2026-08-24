@@ -41,9 +41,12 @@ export function parseSettings(): Settings {
         settings.kMeansClusteringColorSpace = ClusteringColorSpace.RGB;
     } else if ($("#optColorSpaceHSL").prop("checked")) {
         settings.kMeansClusteringColorSpace = ClusteringColorSpace.HSL;
-    } else if ($("#optColorSpaceRGB").prop("checked")) {
+    } else if ($("#optColorSpaceLAB").prop("checked")) {
         settings.kMeansClusteringColorSpace = ClusteringColorSpace.LAB;
     }
+
+    const colorSpaceNames = ["RGB", "HSL", "LAB"];
+    console.log("Color space selected:", colorSpaceNames[settings.kMeansClusteringColorSpace], "(enum value:", settings.kMeansClusteringColorSpace + ")");
 
     if ($("#optFacetRemovalLargestToSmallest").prop("checked")) {
         settings.removeFacetsFromLargeToSmall = true;
